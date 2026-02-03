@@ -161,10 +161,19 @@
 </div>
 
 <script>
-    let students = JSON.parse(localStorage.getItem('students')) || [];
-    let campaigns = JSON.parse(localStorage.getItem('campaigns')) || [];
-    let donations = JSON.parse(localStorage.getItem('donations')) || [];
-    let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+    // CHỈ CẦN THAY ĐỔI TÊN Ở DÒNG NÀY CHO MỖI FILE (Ví dụ: 'data_lop_1a', 'data_lop_1b')
+    const DATA_PREFIX = 'vhungcc1_'; 
+
+    // Tự động điều chỉnh các khóa lưu trữ theo tiền tố trên
+    const KEY_STUDENTS = DATA_PREFIX + 'students';
+    const KEY_CAMPAIGNS = DATA_PREFIX + 'campaigns';
+    const KEY_DONATIONS = DATA_PREFIX + 'donations';
+    const KEY_EXPENSES = DATA_PREFIX + 'expenses';
+
+    let students = JSON.parse(localStorage.getItem(KEY_STUDENTS)) || [];
+    let campaigns = JSON.parse(localStorage.getItem(KEY_CAMPAIGNS)) || [];
+    let donations = JSON.parse(localStorage.getItem(KEY_DONATIONS)) || [];
+    let expenses = JSON.parse(localStorage.getItem(KEY_EXPENSES)) || [];
 
     function toTitleCase(str) {
         if (!str) return "";
@@ -197,7 +206,7 @@
         if(!name) return alert("Tên HS không được để trống");
         students.push({ id: Date.now(), name, father: f, mother: m });
         students.sort((a,b) => a.name.localeCompare(b.name));
-        localStorage.setItem('students', JSON.stringify(students));
+        localStorage.setItem(KEY_STUDENTS, JSON.stringify(students));
         document.querySelectorAll('#tab-students input').forEach(i => i.value = '');
         renderStudents();
     }
@@ -215,7 +224,7 @@
     function deleteStudent(id) {
         if(confirm("Xóa học sinh này?")) {
             students = students.filter(s => s.id !== id);
-            localStorage.setItem('students', JSON.stringify(students));
+            localStorage.setItem(KEY_STUDENTS, JSON.stringify(students));
             renderStudents();
         }
     }
@@ -225,7 +234,7 @@
         let name = document.getElementById('campName').value.trim().toUpperCase();
         if(!name) return alert("Nhập tên danh sách");
         campaigns.push({ id: Date.now(), name });
-        localStorage.setItem('campaigns', JSON.stringify(campaigns));
+        localStorage.setItem(KEY_CAMPAIGNS, JSON.stringify(campaigns));
         document.getElementById('campName').value = '';
         renderCampaigns();
     }
@@ -241,14 +250,14 @@
             campaigns = campaigns.filter(c => c.id !== id);
             donations = donations.filter(d => d.campaignId != id);
             expenses = expenses.filter(e => e.campaignId != id);
-            localStorage.setItem('campaigns', JSON.stringify(campaigns));
-            localStorage.setItem('donations', JSON.stringify(donations));
-            localStorage.setItem('expenses', JSON.stringify(expenses));
+            localStorage.setItem(KEY_CAMPAIGNS, JSON.stringify(campaigns));
+            localStorage.setItem(KEY_DONATIONS, JSON.stringify(donations));
+            localStorage.setItem(KEY_EXPENSES, JSON.stringify(expenses));
             renderCampaigns();
         }
     }
 
-    // --- NHẬP TIỀN (Phần chỉnh sửa) ---
+    // --- NHẬP TIỀN ---
     function prepareDonateTab() {
         let sel = document.getElementById('donateCampaignSelect');
         sel.innerHTML = campaigns.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -259,13 +268,11 @@
     function handleDonateNameInput() {
         let val = document.getElementById('donateName').value.toLowerCase();
         let suggestions = document.getElementById('customSuggestions');
-        
         if (val.length < 1) {
             suggestions.style.display = 'none';
             checkAndHighlightDuplicate();
             return;
         }
-
         let matches = students.filter(s => s.name.toLowerCase().includes(val));
         if (matches.length > 0) {
             suggestions.innerHTML = matches.map(s => `
@@ -286,7 +293,6 @@
         checkAndHighlightDuplicate();
     }
 
-    // Đóng gợi ý khi bấm ra ngoài
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.suggestion-wrapper')) {
             document.getElementById('customSuggestions').style.display = 'none';
@@ -297,7 +303,6 @@
         let name = toTitleCase(document.getElementById('donateName').value.trim());
         let campId = document.getElementById('donateCampaignSelect').value;
         let found = donations.find(d => d.campaignId == campId && d.studentName === name);
-        
         document.getElementById('dupAlert').style.display = found ? 'block' : 'none';
         renderRecentDonations(found ? found.id : null);
     }
@@ -308,7 +313,6 @@
         let amt = getRawMoney(document.getElementById('donateAmount').value);
         if(!campId) return alert("Vui lòng tạo một đợt ủng hộ trước.");
         if(!name || amt <= 0) return alert("Nhập đủ tên và số tiền");
-        
         let idx = donations.findIndex(d => d.campaignId == campId && d.studentName === name);
         if(idx >= 0) {
             if(!confirm("Học sinh này đã ủng hộ rồi. Bạn có muốn cập nhật lại số tiền mới không?")) return;
@@ -316,7 +320,7 @@
         } else {
             donations.push({ id: Date.now(), campaignId: campId, studentName: name, amount: amt });
         }
-        localStorage.setItem('donations', JSON.stringify(donations));
+        localStorage.setItem(KEY_DONATIONS, JSON.stringify(donations));
         document.getElementById('donateName').value = '';
         document.getElementById('donateAmount').value = '';
         document.getElementById('dupAlert').style.display = 'none';
@@ -326,18 +330,11 @@
     function renderRecentDonations(highId = null) {
         let campId = document.getElementById('donateCampaignSelect').value;
         if(!campId) return;
-        
         let list = donations.filter(d => d.campaignId == campId).reverse();
-        
-        // Đẩy tên trùng lên trên cùng
         if(highId) {
             let i = list.findIndex(d => d.id === highId);
-            if(i > -1) { 
-                let item = list.splice(i, 1)[0]; 
-                list.unshift(item); 
-            }
+            if(i > -1) { let item = list.splice(i, 1)[0]; list.unshift(item); }
         }
-        
         let totalMoney = 0;
         let html = list.map(d => {
             totalMoney += d.amount;
@@ -353,7 +350,6 @@
                 <button style="color:red;border:1px solid red;background:none;padding:5px;border-radius:4px" onclick="deleteDonation(${d.id})">Xóa</button>
             </div>`;
         }).join('');
-        
         document.getElementById('recentDonations').innerHTML = html;
         document.getElementById('sumCount').innerText = list.length;
         document.getElementById('sumMoney').innerText = formatMoney(totalMoney) + " đ";
@@ -362,7 +358,7 @@
     function deleteDonation(id) {
         if(confirm("Xóa mục này?")) {
             donations = donations.filter(d => d.id !== id);
-            localStorage.setItem('donations', JSON.stringify(donations));
+            localStorage.setItem(KEY_DONATIONS, JSON.stringify(donations));
             renderRecentDonations();
         }
     }
@@ -382,7 +378,7 @@
         if(!campId) return alert("Vui lòng chọn đợt ủng hộ.");
         if(!title || amt <= 0) return alert("Vui lòng nhập khoản chi và số tiền!");
         expenses.push({ id: Date.now(), campaignId: campId, date, title, amount: amt });
-        localStorage.setItem('expenses', JSON.stringify(expenses));
+        localStorage.setItem(KEY_EXPENSES, JSON.stringify(expenses));
         document.getElementById('expTitle').value = '';
         document.getElementById('expAmount').value = '';
         renderExpenses();
@@ -405,7 +401,7 @@
     function deleteExpense(id) {
         if(confirm("Xóa khoản chi này?")) {
             expenses = expenses.filter(e => e.id !== id);
-            localStorage.setItem('expenses', JSON.stringify(expenses));
+            localStorage.setItem(KEY_EXPENSES, JSON.stringify(expenses));
             renderExpenses();
         }
     }
@@ -424,46 +420,30 @@
         let camp = campaigns.find(c => c.id == cid);
         let html = '';
         let total = 0;
-
         if(type === 'donate') {
             let list = donations.filter(d => d.campaignId == cid).sort((a,b) => a.id - b.id);
             let rows = list.map((d, i) => {
                 total += d.amount;
                 return `<tr><td style="text-align:center">${i+1}</td><td>PH bạn</td><td>${d.studentName}</td><td style="text-align:right">${formatMoney(d.amount)}</td></tr>`;
             }).join('');
-            html = `
-                <div class="header-preview">DANH SÁCH ỦNG HỘ ${camp.name}</div>
-                <table class="print-table-preview">
-                    <thead><tr><th>STT</th><th>Vai trò</th><th>Họ và tên</th><th>Số tiền</th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="4" style="text-align:center">Chưa có dữ liệu</td></tr>'}</tbody>
-                    <tfoot><tr><th colspan="3" style="text-align:right">Tổng cộng:</th><th style="text-align:right">${formatMoney(total)}</th></tr></tfoot>
-                </table>`;
+            html = `<div class="header-preview">DANH SÁCH ỦNG HỘ ${camp.name}</div><table class="print-table-preview"><thead><tr><th>STT</th><th>Vai trò</th><th>Họ và tên</th><th>Số tiền</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="text-align:center">Chưa có dữ liệu</td></tr>'}</tbody><tfoot><tr><th colspan="3" style="text-align:right">Tổng cộng:</th><th style="text-align:right">${formatMoney(total)}</th></tr></tfoot></table>`;
         } else {
             let list = expenses.filter(e => e.campaignId == cid).sort((a,b) => a.id - b.id);
             let rows = list.map((e, i) => {
                 total += e.amount;
                 return `<tr><td style="text-align:center">${i+1}</td><td>${e.date||''}</td><td>${e.title}</td><td style="text-align:right">${formatMoney(e.amount)}</td></tr>`;
             }).join('');
-            html = `
-                <div class="header-preview">DANH SÁCH CHI TIÊU ${camp.name}</div>
-                <table class="print-table-preview">
-                    <thead><tr><th>STT</th><th>Ngày</th><th>Nội dung chi</th><th>Số tiền</th></tr></thead>
-                    <tbody>${rows || '<tr><td colspan="4" style="text-align:center">Chưa có dữ liệu chi</td></tr>'}</tbody>
-                    <tfoot><tr><th colspan="3" style="text-align:right">Tổng chi:</th><th style="text-align:right">${formatMoney(total)}</th></tr></tfoot>
-                </table>`;
+            html = `<div class="header-preview">DANH SÁCH CHI TIÊU ${camp.name}</div><table class="print-table-preview"><thead><tr><th>STT</th><th>Ngày</th><th>Nội dung chi</th><th>Số tiền</th></tr></thead><tbody>${rows || '<tr><td colspan="4" style="text-align:center">Chưa có dữ liệu chi</td></tr>'}</tbody><tfoot><tr><th colspan="3" style="text-align:right">Tổng chi:</th><th style="text-align:right">${formatMoney(total)}</th></tr></tfoot></table>`;
         }
         document.getElementById('printContent').innerHTML = html;
     }
 
     function printData() {
         const win = window.open('', '', 'height=700,width=900');
-        win.document.write('<html><head><title>In</title>');
-        win.document.write('<style>body{margin:20px;font-family:"Times New Roman",serif}table{width:100%;border-collapse:collapse;font-size:13pt}th,td{border:1px solid #000;padding:6px}.header{text-align:center;font-weight:bold;font-size:16pt;margin-bottom:15px;text-transform:uppercase}</style>');
-        win.document.write('</head><body>');
+        win.document.write('<html><head><title>In</title><style>body{margin:20px;font-family:"Times New Roman",serif}table{width:100%;border-collapse:collapse;font-size:13pt}th,td{border:1px solid #000;padding:6px}.header{text-align:center;font-weight:bold;font-size:16pt;margin-bottom:15px;text-transform:uppercase}</style></head><body>');
         win.document.write(document.getElementById('printContent').innerHTML);
         win.document.write('</body></html>');
-        win.document.close();
-        win.focus();
+        win.document.close(); win.focus();
         setTimeout(() => { win.print(); win.close(); }, 500);
     }
 
@@ -482,7 +462,7 @@
         let blob = new Blob([data], {type: "text/plain"});
         let a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = "saoluu_quy_lop_" + new Date().toLocaleDateString() + ".txt";
+        a.download = "saoluu_" + DATA_PREFIX + new Date().toLocaleDateString() + ".txt";
         a.click();
     }
     function restoreData() {
@@ -492,11 +472,11 @@
         reader.onload = function(e) {
             try {
                 let data = JSON.parse(e.target.result);
-                if(confirm("Dữ liệu cũ sẽ bị thay thế. Tiếp tục?")) {
-                    localStorage.setItem('students', JSON.stringify(data.students || []));
-                    localStorage.setItem('campaigns', JSON.stringify(data.campaigns || []));
-                    localStorage.setItem('donations', JSON.stringify(data.donations || []));
-                    localStorage.setItem('expenses', JSON.stringify(data.expenses || []));
+                if(confirm("Dữ liệu cũ của " + DATA_PREFIX + " sẽ bị thay thế. Tiếp tục?")) {
+                    localStorage.setItem(KEY_STUDENTS, JSON.stringify(data.students || []));
+                    localStorage.setItem(KEY_CAMPAIGNS, JSON.stringify(data.campaigns || []));
+                    localStorage.setItem(KEY_DONATIONS, JSON.stringify(data.donations || []));
+                    localStorage.setItem(KEY_EXPENSES, JSON.stringify(data.expenses || []));
                     location.reload();
                 }
             } catch(e) { alert("File không đúng định dạng!"); }
@@ -526,4 +506,3 @@
 </body>
 
 </html>
-
